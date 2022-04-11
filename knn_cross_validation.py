@@ -9,22 +9,13 @@ class NearestNeighbor(object):
     def __init__(self):
         pass
 
-    def train(self, X, y):
+    def train(self, x, y):
         """ X is N x D where each row is an example. Y is 1-dimension of size N """
         # the nearest neighbor classifier simply remembers all the training data
-        self.Xtr = X
+        self.Xtr = x
         self.ytr = y
 
-    def predict(self, dists, k):
-        num_test = dists.shape[0]
-        predict = np.zeros(num_test)
-        for i in range(num_test):
-            nearest = np.argsort(dists[i])[:k]  # i번째 테스트셋의 가장가까운 n개 이웃을 찾기(정렬)
-            predict[i] = self.ytr[
-                np.argmax(np.bincount(nearest))]  # n개 이웃들중 가장 많이 나오는 라벨값 찾기(빈도수를 반환하는 함수 배열 중 최고갑의 인덱스)
-
-        return predict
-
+    #거리찾기
     def distance(self, X):
         num_test = X.shape[0]
         num_train = self.Xtr.shape[0]
@@ -32,10 +23,27 @@ class NearestNeighbor(object):
 
         for i in range(num_test):
             for j in range(num_train):
-                dist[i][j] = np.sqrt(np.sum(np.square(X[i] - self.X_train[j])))
+                dist[i][j] = np.sqrt(np.sum(np.square(X[i] - self.Xtr[j])))
 
         return dist
 
+    #거리를 통해 가장가까운 k개 이웃찾기 이웃들이 가장 많이 갖고있는 라벨값 찾기
+    def label_predict(self, dists, k):
+        num_test = dists.shape[0]
+        label_predict = np.zeros(num_test)
+        for i in range(num_test):
+            sort = np.argsort(dists[i])
+            nearest = sort[0:k]  # i번째 테스트셋의 가장가까운 n개 이웃을 찾기(정렬)
+            label_predict[i] = self.ytr[np.argmax(np.bincount(nearest))]  # n개 이웃들중 가장 많이 나오는 라벨값 찾기(빈도수를 반환하는 함수 배열 중 최고값의 인덱스)
+
+        return label_predict
+
+    # 최종결과
+    def prediction(self, testSet, k):
+        dists = self.distance(testSet)
+        prediction = self.label_predict(dists, k)
+
+        return prediction
 
 def load_CIFAR10():
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -61,8 +69,8 @@ def run():
     # cross validation 이용
     foldNum = 5
     # 트레이닝 셋을 다섯개로 나누기--> [[0~9999], [10000~19999]....]
-    validation_x = np.array_split(Xtr_rows, fold_num)
-    validation_Y = np.array_split(Ytr, fold_num)
+    validation_x = np.array_split(Xtr_rows, foldNum)
+    validation_y = np.array_split(Yte, foldNum)
 
     kAcc = {}
     nn = NearestNeighbor()
@@ -73,12 +81,12 @@ def run():
         correctNum = 0
         for t in range(foldNum):  # 폴드 하나는 validation(xtr_folds), 나머지는 트레이닝 셋(xtr_fold)
             training_x = np.concatenate([x for num, x in enumerate(validation_x) if num != t])
-            training_Y = np.concatenate([y for num, y in enumerate(validation_Y) if num != t])
+            training_y = np.concatenate([y for num, y in enumerate(validation_y) if num != t])
 
-            nn.train(training_x, training_Y)
-            prediction = nn.predict(validation_x[t], k)
-            correctNum = np.sum(prediction == np.array(validation_Y[t]))  # 실제 라벨과 예측 라벨이 맞으면 맞춘 횟수 카운트
-            acc.append(float(correctNum) / len(validation_Y[t]))  # 트레이닝 셋의 예측과 validation 셋의 숫자로 평균..
+            nn.train(training_x, training_y)
+            prediction = nn.prediction(np.array(validation_x[t]), k)
+            correctNum = np.sum(prediction == np.array(validation_y[t]))  # 실제 라벨과 예측 라벨이 맞으면 맞춘 횟수 카운트
+            acc.append(float(correctNum) / len(validation_y[t]))  # 트레이닝 셋의 예측과 validation 셋의 숫자로 평균..
         kAcc[k] = acc # 각 k별로 정확도 저장
         print("## ", end='')
     print("| 100%")
@@ -99,6 +107,7 @@ def run():
     plt.title('Cross-validation on k')
     plt.xlabel('k')
     plt.ylabel('Cross-validation accuracy')
+    plt.savefig('test.png')
     plt.show()
 
 
