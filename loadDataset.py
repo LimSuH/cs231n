@@ -17,5 +17,5 @@ def load_CIFAR10():
     dataiter = iter(testloader)
     test_images, test_labels = dataiter.next()
 
-    #return train_images, train_labels, test_images, test_labels
-    return trainloader, testloader
+    return train_images, train_labels, test_images, test_labels
+    #return trainloader, testloader
